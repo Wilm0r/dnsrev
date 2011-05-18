@@ -1,6 +1,7 @@
 #!/usr/bin/python
 
 import dns.reversename
+import getopt
 import ipaddr
 import os
 import re
@@ -51,6 +52,18 @@ def dns_re(types):
 	return re.compile(r"^([^\s]*\.)\s+(?:\d+\s+)?IN\s+(%s)\s+(.*)$" % "|".join(types))
 
 
+def get_flag(flag):
+	flag = "-%s" % flag
+	flags = getopt.getopt(sys.argv[1:], "ns")[0]
+	res = [y for x, y in flags if x == flag]
+	if len(res) == 0:
+		return False
+	elif res[0] == "":
+		return True
+	else:
+		return res[0]
+
+
 # Using this more as a struct.
 class ZoneFile(object):
 	def __init__(self, fn):
@@ -74,7 +87,7 @@ for fn, zone in FWD_ZONES:
 
 
 # Get all manually-set reverse info (and don't autogen that part).
-revre = dns_re(["PTR"])
+revre = dns_re(["PTR", "SOA"])
 for f in rev_files:
 	cont = open(f.fn).read()
 	parts = cont.split(AUTO_SEP)
@@ -87,9 +100,16 @@ for f in rev_files:
 	open(fn_tmp, "w").write(f.head)
 	for line in parse_zone(fn_tmp, f.zone):
 		m = revre.match(line)
-		if m:
+		if not m:
+			continue
+		mg = m.groups()
+		
+		if mg[1] == "PTR":
 			label, _, name = m.groups()
 			f.manual[label] = name
+		else:
+			soa = mg[2].split(" ")
+			o.serial = int(soa[2])
 	
 	os.unlink(fn_tmp)
 
@@ -128,6 +148,9 @@ for f in rev_files:
 			print "No changes for %s" % f.fn
 		else:
 			print "Updating %s" % f.fn
+			if get_flag("n"):
+				continue
+			
 			fn_tmp = f.fn + ".dnspy.tmp"
 			o = file(fn_tmp, "w")
 			o.write(f.head)
