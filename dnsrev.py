@@ -7,6 +7,7 @@ import os
 import re
 import subprocess
 import sys
+import time
 
 os.chdir("test")
 
@@ -64,6 +65,18 @@ def get_flag(flag):
 		return res[0]
 
 
+def new_soa(old):
+	tm = time.localtime()
+	new = (tm.tm_year * 1000000 +
+	       tm.tm_mon  *   10000 +
+	       tm.tm_mday *     100)
+	if new > old:
+		return new
+	else:
+		# Just +1 if necessary.
+		return old + 1
+
+
 # Using this more as a struct.
 class ZoneFile(object):
 	def __init__(self, fn):
@@ -109,7 +122,7 @@ for f in rev_files:
 			f.manual[label] = name
 		else:
 			soa = mg[2].split(" ")
-			o.serial = int(soa[2])
+			f.serial = int(soa[2])
 	
 	os.unlink(fn_tmp)
 
@@ -147,16 +160,19 @@ for f in rev_files:
 		if recs == f.oldauto:
 			print "No changes for %s" % f.fn
 		else:
-			print "Updating %s" % f.fn
+			serial = new_soa(f.serial)
+			print "Updating %s, new serial %d" % (f.fn, serial)
 			if get_flag("n"):
 				continue
 			
+			head = f.head.rstrip()
+			if not get_flag("s"):
+				serre = re.compile(r"\b(SOA\b.*?)\b%d\b" % f.serial, re.S)
+				head = serre.sub(r"\g<1>%d" % serial, head)
+			
 			fn_tmp = f.fn + ".dnspy.tmp"
 			o = file(fn_tmp, "w")
-			o.write(f.head)
-			if not f.oldauto:
-				# If there was no auto-stuff yet, create some separation.
-				o.write("\n\n")
-			o.write("%s\n\n%s\n" % (AUTO_SEP, "\n".join(recs)))
+			o.write(head)
+			o.write("\n\n%s\n\n%s\n" % (AUTO_SEP, "\n".join(recs)))
 			o.close()
 			os.rename(fn_tmp, f.fn)
