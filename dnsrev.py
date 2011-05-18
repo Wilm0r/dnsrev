@@ -50,12 +50,14 @@ def parse_zone(fn, zone):
 
 
 def dns_re(types):
+	"""Simple DNS zonefile line matcher."""
 	return re.compile(r"^([^\s]*\.)\s+(?:\d+\s+)?IN\s+(%s)\s+(.*)$" % "|".join(types))
 
 
 def get_flag(flag):
+	"""Ugly getopt wrapper."""
 	flag = "-%s" % flag
-	flags = getopt.getopt(sys.argv[1:], "ns")[0]
+	flags = getopt.getopt(sys.argv[1:], "dhns")[0]
 	res = [y for x, y in flags if x == flag]
 	if len(res) == 0:
 		return False
@@ -66,6 +68,8 @@ def get_flag(flag):
 
 
 def new_soa(old):
+	"""Create new SOA for today's date (or increment the old one if
+	otherwise the one would would be lower."""
 	tm = time.localtime()
 	new = (tm.tm_year * 1000000 +
 	       tm.tm_mon  *   10000 +
@@ -82,6 +86,24 @@ class ZoneFile(object):
 	def __init__(self, fn):
 		self.fn = fn
 
+
+if get_flag("h"):
+	print """\
+dnsrev - Autogen/refresh reverse DNS zonefiles.
+
+Set your forward and reverse zones. All zonefiles have to exist already,
+this script does not (yet) create reverse zonefiles from scratch, it only
+updates them.
+
+  -h    This help info.
+  -n    Dry run.
+  -d    Show diffs of changes.
+  -s    Do not update SOA serial number."""
+	
+	sys.exit(1)
+
+
+# Convert all config data into zonefile "objects".
 rev_files = []
 for fn, sn in REV_ZONES:
 	o = ZoneFile(fn)
@@ -152,18 +174,19 @@ for line in fwd:
 				print "Duplicate entry, two names for %s" % address
 
 
+# Generate the reverse files.
 for f in rev_files:
 	if f.auto:
 		recs = []
 		for ad in sorted(f.auto.keys()):
 			recs.append("%-50s  IN PTR %s" % (ad, f.auto[ad]))
+		
 		if recs == f.oldauto:
 			print "No changes for %s" % f.fn
+		
 		else:
 			serial = new_soa(f.serial)
 			print "Updating %s, new serial %d" % (f.fn, serial)
-			if get_flag("n"):
-				continue
 			
 			head = f.head.rstrip()
 			if not get_flag("s"):
@@ -175,4 +198,16 @@ for f in rev_files:
 			o.write(head)
 			o.write("\n\n%s\n\n%s\n" % (AUTO_SEP, "\n".join(recs)))
 			o.close()
-			os.rename(fn_tmp, f.fn)
+			
+			p = subprocess.Popen(["/usr/bin/diff", "-u", f.fn, fn_tmp])
+			p.communicate()
+			
+			if not get_flag("n"):
+				os.rename(fn_tmp, f.fn)
+			else:
+				os.unlink(fn_tmp)
+	
+	else:
+		# Bug: If the file had some autogen data we won't delete it. Oh well.
+		print "No data for %s" % f.fn
+		pass
