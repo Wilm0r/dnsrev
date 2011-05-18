@@ -6,7 +6,6 @@ import os
 import re
 import subprocess
 import sys
-import tempfile
 
 os.chdir("test")
 
@@ -48,6 +47,10 @@ def parse_zone(fn, zone):
 	return zone.splitlines()
 
 
+def dns_re(types):
+	return re.compile(r"^([^\s]*\.)\s+(?:\d+\s+)?IN\s+(%s)\s+(.*)$" % "|".join(types))
+
+
 # Using this more as a struct.
 class ZoneFile(object):
 	def __init__(self, fn):
@@ -71,10 +74,14 @@ for fn, zone in FWD_ZONES:
 
 
 # Get all manually-set reverse info (and don't autogen that part).
-revre = re.compile(r"^([^\s]*\.)\s+\d+\s+IN\s+(PTR)\s+(.*)$")
+revre = dns_re(["PTR"])
 for f in rev_files:
 	cont = open(f.fn).read()
-	f.head = cont.split(AUTO_SEP)[0]
+	parts = cont.split(AUTO_SEP)
+	f.head = parts[0]
+	f.oldauto = None
+	if len(parts) > 1: # Better not be > 2 actually!
+		f.oldauto = parts[1].strip().splitlines()
 	
 	fn_tmp = f.fn + ".dnspy.tmp"
 	open(fn_tmp, "w").write(f.head)
@@ -93,7 +100,7 @@ for f in fwd_files:
 	fwd += parse_zone(f.fn, f.zone)
 
 addrs = []
-addrre = re.compile(r"^([^\s]*\.)\s+\d+\s+IN\s+(A|AAAA)\s+(.*)$")
+addrre = dns_re(["A", "AAAA"])
 for line in fwd:
 	m = addrre.match(line)
 	if not m:
@@ -114,9 +121,19 @@ for line in fwd:
 
 for f in rev_files:
 	if f.auto:
-		fn_tmp = f.fn + ".dnspy.tmp"
-		o = file(fn_tmp, "w")
-		o.write(f.head)
-		o.write(AUTO_SEP + "\n\n")
+		recs = []
 		for ad in sorted(f.auto.keys()):
-			o.write("%-50s  IN PTR %s\n" % (ad, f.auto[ad]))
+			recs.append("%-50s  IN PTR %s" % (ad, f.auto[ad]))
+		if recs == f.oldauto:
+			print "No changes for %s" % f.fn
+		else:
+			print "Updating %s" % f.fn
+			fn_tmp = f.fn + ".dnspy.tmp"
+			o = file(fn_tmp, "w")
+			o.write(f.head)
+			if not f.oldauto:
+				# If there was no auto-stuff yet, create some separation.
+				o.write("\n\n")
+			o.write("%s\n\n%s\n" % (AUTO_SEP, "\n".join(recs)))
+			o.close()
+			os.rename(fn_tmp, f.fn)
