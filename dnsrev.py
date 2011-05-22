@@ -10,18 +10,6 @@ import sys
 import tempfile
 import time
 
-os.chdir("test")
-
-FWD_ZONES = [("db.beilen.gaast.net.int", "beilen.gaast.net"),
-             ("db.dublin.gaast.net.int", "dublin.gaast.net"),
-             ("db.co.gaast.net", "co.gaast.net"),
-             ("db.gaast.net", "gaast.net")]
-REV_ZONES = [("db.beilen.gaast.net.rev.0", "192.168.0.0/24"),
-             ("db.beilen6.gaast.net.rev", "2001:888:174d::/48"),
-             ("db.dublin.gaast.net.rev", "192.168.9.0/24"),
-             ("db.dublin6.gaast.net.rev", "2001:770:17b::/48"),
-             ("db.beilen.gaast.net.rev.168", "192.168.168.0/24"),
-             ("db.co.gaast.net.rev", "192.168.78.0/24")]
 
 AUTO_SEP = ";; ---- dnsrev.py ---- automatically generated, do not edit ---- dnsrev.py ----"
 
@@ -55,13 +43,17 @@ def dns_re(types):
 	return re.compile(r"^([^\s]*\.)\s+(?:\d+\s+)?IN\s+(%s)\s+(.*)$" % "|".join(types))
 
 
-def get_flag(flag):
+def get_flag(flag, default=None):
 	"""Ugly getopt wrapper."""
 	flag = "-%s" % flag
-	flags = getopt.getopt(sys.argv[1:], "dhns")[0]
+	flags = getopt.getopt(sys.argv[1:], "dhnsc:")[0]
 	res = [y for x, y in flags if x == flag]
 	if len(res) == 0:
-		return False
+		if default is not None:
+			return default
+		else:
+			return False
+
 	elif res[0] == "":
 		return True
 	else:
@@ -91,8 +83,14 @@ class ZoneFile(object):
 		dir, fn = os.path.split(self.fn)
 		return tempfile.NamedTemporaryFile(dir=dir, prefix=(fn + ".")).name
 
+cfg = {}
+try:
+	execfile(get_flag("c", "dnsrev.conf"), cfg)
+except IOError:
+	pass
 
-if get_flag("h"):
+
+if not cfg or get_flag("h"):
 	print """\
 dnsrev - Autogen/refresh reverse DNS zonefiles.
 
@@ -100,17 +98,18 @@ Set your forward and reverse zones. All zonefiles have to exist already,
 this script does not (yet) create reverse zonefiles from scratch, it only
 updates them.
 
-  -h    This help info.
-  -n    Dry run.
-  -d    Show diffs of changes.
-  -s    Do not update SOA serial number."""
+  -c [file]   Configuration file location (default: ./dnsrev.conf).
+  -h          This help info.
+  -n          Dry run.
+  -d          Show diffs of changes.
+  -s          Do not update SOA serial number."""
 	
 	sys.exit(1)
 
 
 # Convert all config data into zonefile "objects".
 rev_files = []
-for fn, sn in REV_ZONES:
+for fn, sn in cfg["REV_ZONES"]:
 	o = ZoneFile(fn)
 	o.sn = sn
 	o.sno = ipaddr.IPNetwork(sn)
@@ -120,7 +119,7 @@ for fn, sn in REV_ZONES:
 	rev_files.append(o)
 
 fwd_files = []
-for fn, zone in FWD_ZONES:
+for fn, zone in cfg["FWD_ZONES"]:
 	o = ZoneFile(fn)
 	o.zone = zone
 	fwd_files.append(o)
