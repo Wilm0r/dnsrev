@@ -7,6 +7,7 @@ import os
 import re
 import subprocess
 import sys
+import tempfile
 import time
 
 os.chdir("test")
@@ -86,6 +87,10 @@ class ZoneFile(object):
 	def __init__(self, fn):
 		self.fn = fn
 
+	def mktemp(self):
+		dir, fn = os.path.split(self.fn)
+		return tempfile.NamedTemporaryFile(dir=dir, prefix=(fn + ".")).name
+
 
 if get_flag("h"):
 	print """\
@@ -131,7 +136,7 @@ for f in rev_files:
 	if len(parts) > 1: # Better not be > 2 actually!
 		f.oldauto = parts[1].strip().splitlines()
 	
-	fn_tmp = f.fn + ".dnspy.tmp"
+	fn_tmp = f.mktemp()
 	open(fn_tmp, "w").write(f.head)
 	for line in parse_zone(fn_tmp, f.zone):
 		m = revre.match(line)
@@ -193,7 +198,7 @@ for f in rev_files:
 				serre = re.compile(r"\b(SOA\b.*?)\b%d\b" % f.serial, re.S)
 				head = serre.sub(r"\g<1>%d" % serial, head)
 			
-			fn_tmp = f.fn + ".dnspy.tmp"
+			fn_tmp = f.mktemp()
 			o = file(fn_tmp, "w")
 			o.write(head)
 			o.write("\n\n%s\n\n%s\n" % (AUTO_SEP, "\n".join(recs)))
