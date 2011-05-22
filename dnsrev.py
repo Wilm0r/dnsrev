@@ -204,8 +204,9 @@ for f in rev_files:
 			o.write("\n\n%s\n\n%s\n" % (AUTO_SEP, "\n".join(recs)))
 			o.close()
 			
-			p = subprocess.Popen(["/usr/bin/diff", "-u", f.fn, fn_tmp])
-			p.communicate()
+			if get_flag("d"):
+				p = subprocess.Popen(["/usr/bin/diff", "-u", f.fn, fn_tmp])
+				p.communicate()
 			
 			if not get_flag("n"):
 				os.rename(fn_tmp, f.fn)
