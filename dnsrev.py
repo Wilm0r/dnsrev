@@ -1,4 +1,28 @@
 #!/usr/bin/python
+#
+# dnsrev - Simple DNS PTR generator. Works with IPv4 and IPv6 addresses
+# with different zonefile layouts.
+#
+# Copyright 2011 Wilmer van der Gaast <wilmer@gaast.net>
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License version 2 as
+# published by the Free Software Foundation.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+#
+
+############################### DEPENDENCIES ###############################
+# If it doesn't run properly, make sure you have the dnspython and ipaddr
+# Python modules installed, and named-compilezones. On Debian systems, just
+# apt-get install python-ipaddr python-dnspython bind9utils
 
 import dns.reversename
 import getopt
@@ -83,12 +107,12 @@ class ZoneFile(object):
 		dir, fn = os.path.split(self.fn)
 		return tempfile.NamedTemporaryFile(dir=dir, prefix=(fn + ".")).name
 
+
 cfg = {}
 try:
 	execfile(get_flag("c", "dnsrev.conf"), cfg)
 except IOError:
 	pass
-
 
 if not cfg or get_flag("h"):
 	print """\
@@ -102,7 +126,22 @@ updates them.
   -h          This help info.
   -n          Dry run.
   -d          Show diffs of changes.
-  -s          Do not update SOA serial number."""
+  -s          Do not update SOA serial number.
+
+The configuration file should define two lists of tuples like this:
+
+FWD_ZONES = [("db.example.net", "example.net"),
+             ...]
+REV_ZONES = [("db.example.net.rev4", "192.0.32.0/24"),
+             ("db.example.net.rev6", "2620:0:2d0:200::/64"),
+             ...]
+
+The first column is the name of the zonefile. The second column is the
+domain name in FWD_ZONES, and the ASCII-formatted subnet (including
+netmask) in REV_ZONES.
+
+You can list as many forward and reverse zones as you want. There doesn't
+have to be any kind of 1:1 relationship between any of them."""
 	
 	sys.exit(1)
 
