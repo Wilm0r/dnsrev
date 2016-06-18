@@ -15,7 +15,7 @@ Features:
 ## Dependencies
 
 It uses the `dnspython` and `ipaddr` Python modules, and
-named-compilezones`. On Debian-like systems, just run:
+`named-compilezones`. On Debian-like systems, just run:
 
 ```
 apt-get install python-ipaddr python-dnspython bind9utils
@@ -27,7 +27,7 @@ Just update `dnsrev.conf` with all your zonefiles and run `dnsrev.py`.
 The script will try to keep all auto-generated changes in a separate
 section at the bottom of your reverse files, it will not delete or
 modify anything outside that section (other than the SOA serial# which
-it will update, using the usual YYYYMMDDHHMMXX scheme).
+it will update, using the usual YYYYMMDDXX scheme).
 
 ## --help
 
