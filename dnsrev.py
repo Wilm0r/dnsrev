@@ -3,7 +3,7 @@
 # dnsrev - Simple DNS PTR generator. Works with IPv4 and IPv6 addresses
 # with different zonefile layouts.
 #
-# Copyright 2011 Wilmer van der Gaast <wilmer@gaast.net>
+# Copyright 2011-2016 Wilmer van der Gaast <wilmer@gaast.net>
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License version 2 as
@@ -148,11 +148,15 @@ have to be any kind of 1:1 relationship between any of them."""
 
 # Convert all config data into zonefile "objects".
 rev_files = []
-for fn, sn in cfg["REV_ZONES"]:
+for zone in cfg["REV_ZONES"]:
+	fn, sn = zone[0:2]
 	o = ZoneFile(fn)
 	o.sn = sn
 	o.sno = ipaddr.IPNetwork(sn)
-	o.zone = subnet_rev(sn)
+	if len(zone) > 2:
+		o.zone = zone[2]
+	else:
+		o.zone = subnet_rev(sn)
 	o.manual = {}
 	o.auto = {}
 	rev_files.append(o)
@@ -207,7 +211,10 @@ for line in fwd:
 	name, _, address = m.groups()
 	for f in rev_files:
 		if ipaddr.IPNetwork(address) in f.sno:
-			label = str(dns.reversename.from_address(address))
+			if f.sno.ip.version == 4 and f.sno.prefixlen > 24:
+				label = "%s.%s" % (address.split(".")[3], f.zone)
+			else:
+				label = str(dns.reversename.from_address(address))
 			if label in f.manual:
 				#print "Already manually created: %s" % address
 				pass # fuck you python
