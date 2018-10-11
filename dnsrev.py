@@ -43,9 +43,9 @@ def subnet_rev(full_addr):
 	addr, mask = full_addr.split("/")
 	full_label = str(dns.reversename.from_address(addr))
 	if ':' in addr:
-		rest = (128 - int(mask)) / 4
+		rest = int((128 - int(mask)) / 4)
 	else:
-		rest = (32 - int(mask)) / 8
+		rest = int((32 - int(mask)) / 8)
 	return full_label.split(".", rest)[-1]
 
 
@@ -55,11 +55,11 @@ def parse_zone(fn, zone):
 	                     stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 	zone, errors = p.communicate()
 	if p.returncode > 0:
-		print "While parsing %s:\n" % fn
-		print errors
+		print("While parsing %s:\n" % fn)
+		print(errors)
 		sys.exit(1)
 	
-	return zone.splitlines()
+	return (zone.decode("utf-8").splitlines())
 
 
 def dns_re(types):
@@ -109,13 +109,17 @@ class ZoneFile(object):
 
 
 cfg = {}
+cfg_file = get_flag("c", "dnsrev.conf")
+
 try:
-	execfile(get_flag("c", "dnsrev.conf"), cfg)
+	code = compile(open(cfg_file).read(), cfg_file, 'exec')
+	exec(code, cfg)
+
 except IOError:
 	pass
 
 if not cfg or get_flag("h"):
-	print """\
+	print("""\
 dnsrev - Autogen/refresh reverse DNS zonefiles.
 
 Set your forward and reverse zones. All zonefiles have to exist already,
@@ -141,7 +145,7 @@ domain name in FWD_ZONES, and the ASCII-formatted subnet (including
 netmask) in REV_ZONES.
 
 You can list as many forward and reverse zones as you want. There doesn't
-have to be any kind of 1:1 relationship between any of them."""
+have to be any kind of 1:1 relationship between any of them.""")
 	
 	sys.exit(1)
 
@@ -221,7 +225,7 @@ for line in fwd:
 			elif label not in f.auto:
 				f.auto[label] = name
 			else:
-				print "Duplicate entry, two names for %s" % address
+				print("Duplicate entry, two names for %s" % address)
 
 
 # Generate the reverse files.
@@ -232,11 +236,11 @@ for f in rev_files:
 			recs.append("%-50s  IN PTR %s" % (ad, f.auto[ad]))
 		
 		if recs == f.oldauto:
-			print "No changes for %s" % f.fn
+			print("No changes for %s" % f.fn)
 		
 		else:
 			serial = new_soa(f.serial)
-			print "Updating %s, new serial %d" % (f.fn, serial)
+			print("Updating %s, new serial %d" % (f.fn, serial))
 			
 			head = f.head.rstrip()
 			if not get_flag("s"):
@@ -260,5 +264,5 @@ for f in rev_files:
 	
 	else:
 		# Bug: If the file had some autogen data we won't delete it. Oh well.
-		print "No data for %s" % f.fn
+		print("No data for %s" % f.fn)
 		pass
