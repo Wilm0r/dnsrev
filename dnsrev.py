@@ -248,7 +248,7 @@ for f in rev_files:
 				head = serre.sub(r"\g<1>%d" % serial, head)
 			
 			fn_tmp = f.mktemp()
-			o = file(fn_tmp, "w")
+			o = open(fn_tmp, "w")
 			o.write(head)
 			o.write("\n\n%s\n\n%s\n" % (AUTO_SEP, "\n".join(recs)))
 			o.close()
