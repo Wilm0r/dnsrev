@@ -22,11 +22,14 @@
 ############################### DEPENDENCIES ###############################
 # If it doesn't run properly, make sure you have the dnspython and ipaddr
 # Python modules installed, and named-compilezones. On Debian systems, just
-# apt-get install python-ipaddr python-dnspython bind9utils
+# apt-get install python3-dns bind9utils
+#
+# For Red Hat dependencies:
+# dnf install python3-dns bind-utils
 
 import dns.reversename
 import getopt
-import ipaddr
+import ipaddress
 import os
 import re
 import subprocess
@@ -156,7 +159,7 @@ for zone in cfg["REV_ZONES"]:
 	fn, sn = zone[0:2]
 	o = ZoneFile(fn)
 	o.sn = sn
-	o.sno = ipaddr.IPNetwork(sn)
+	o.sno = ipaddress.ip_network(sn)
 	if len(zone) > 2:
 		o.zone = zone[2]
 	else:
@@ -214,7 +217,7 @@ for line in fwd:
 	
 	name, _, address = m.groups()
 	for f in rev_files:
-		if ipaddr.IPNetwork(address) in f.sno:
+		if ipaddress.ip_network(address) in f.sno:
 			if f.sno.ip.version == 4 and f.sno.prefixlen > 24:
 				label = "%s.%s" % (address.split(".")[3], f.zone)
 			else:
